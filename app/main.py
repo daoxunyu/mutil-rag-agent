@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.api.middleware import setup_middlewares
-from app.api.v1 import aiops, chat, documents, eval as eval_api, health, incidents, queue, skills, webhook, wiki, approvals
+from app.api.v1 import aiops, chat, documents, education, eval as eval_api, health, incidents, queue, skills, webhook, wiki, approvals, courses, calendar, collaboration
 from app.config import settings
 from app.core.mcp_client import mcp_client_manager
 from app.core.milvus import milvus_manager
@@ -53,30 +53,71 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"运行模式: {'DEBUG' if settings.debug else 'PRODUCTION'}")
     logger.info("=" * 60)
 
-    # 1. 校验配置 (无效时直接抛错, 让 uvicorn 退出)
-    settings.validate_runtime()
+    # 追踪哪些服务实际连接成功, 用于关闭时清理
+    _milvus_ok = False
+    _postgres_ok = False
+    _redis_ok = False
 
-    # 2. 连接 Milvus (必需依赖, 失败则启动失败)
-    milvus_manager.connect()
+    # 1. 校验配置 (无效时警告, 不阻止启动)
+    try:
+        settings.validate_runtime()
+    except Exception as e:
+        logger.warning(f"配置校验警告: {e}")
+
+    # 2. 连接 Milvus (可选, 失败降级)
+    try:
+        milvus_manager.connect()
+        _milvus_ok = True
+        logger.info("Milvus 连接成功")
+    except Exception as e:
+        logger.warning(f"Milvus 不可用, 向量检索功能禁用: {e}")
 
     # 3. 初始化 Incident Pipeline (Postgres 事实库 + Redis Stream 队列)
     if settings.incident_pipeline_enabled:
-        await connect_postgres()
-        await init_incident_schema()
-        await incident_queue.connect()
+        try:
+            await connect_postgres()
+            await init_incident_schema()
+            _postgres_ok = True
+            logger.info("Postgres 连接成功")
+        except Exception as e:
+            logger.warning(f"Postgres 不可用, 事件存储功能禁用: {e}")
+
+        try:
+            await incident_queue.connect()
+            _redis_ok = True
+            logger.info("Redis 连接成功")
+        except Exception as e:
+            logger.warning(f"Redis 不可用, 消息队列功能禁用: {e}")
 
     # 4. 加载 MCP 工具 (可选依赖, 失败仅 warning)
-    await mcp_client_manager.connect(fail_silently=True)
+    try:
+        await mcp_client_manager.connect(fail_silently=True)
+    except Exception as e:
+        logger.warning(f"MCP 连接异常: {e}")
 
-    logger.info("应用就绪, 等待请求...")
+    logger.info("应用就绪 (部分服务可能不可用), 等待请求...")
     yield
     # ==================== 关闭 ====================
     logger.info("应用正在关闭...")
-    await mcp_client_manager.close()
-    if settings.incident_pipeline_enabled:
-        await incident_queue.close()
-        await close_postgres()
-    milvus_manager.disconnect()
+    try:
+        await mcp_client_manager.close()
+    except Exception:
+        pass
+    if _redis_ok:
+        try:
+            await incident_queue.close()
+        except Exception:
+            pass
+    if _postgres_ok:
+        try:
+            await close_postgres()
+        except Exception:
+            pass
+    if _milvus_ok:
+        try:
+            milvus_manager.disconnect()
+        except Exception:
+            pass
     logger.info("应用已关闭")
 
 
@@ -163,7 +204,12 @@ app.include_router(queue.router, prefix=API_PREFIX)
 app.include_router(eval_api.router, prefix=API_PREFIX)
 app.include_router(wiki.router, prefix=API_PREFIX)
 app.include_router(approvals.router, prefix=API_PREFIX)
+app.include_router(education.router, prefix=API_PREFIX)  # 教育多智能体导学平台
+app.include_router(courses.router, prefix=API_PREFIX)
+app.include_router(calendar.router, prefix=API_PREFIX)
+app.include_router(collaboration.router, prefix=API_PREFIX)
 
+logger.info("[Routes] courses/calendar/collaboration/education routers registered")
 
 # ============================================================
 # 静态文件 (前端)
@@ -196,3 +242,4 @@ else:
 # 启动时初始化日志
 # ============================================================
 setup_logging()
+

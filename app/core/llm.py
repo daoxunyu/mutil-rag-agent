@@ -129,6 +129,7 @@ def get_chat_llm(
             logger.warning(
                 "[LLM] 选择 DeepSeek 模型但 DEEPSEEK_API_KEY 未配置, 仍尝试调用 (会 401)"
             )
+        logger.info(f"[LLM] DeepSeek → {selected_model} @ {settings.deepseek_base_url}")
         return ChatOpenAI(
             model=selected_model,
             api_key=api_key or "missing",  # type: ignore[arg-type]

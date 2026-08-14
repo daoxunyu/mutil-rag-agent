@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>多智能体协同平台 — 项目说明文档</title>
+<style>__CSS__</style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER ═══════════════ -->
+<div class="cover">
+  <h1>🤖 多智能体协同平台</h1>
+  <div class="subtitle">高校个性化导学 &amp; AIOps 智能运维</div>
+  <div class="subtitle" style="font-size:18px;margin-top:4px;">项目技术说明文档</div>
+  <div class="badges">
+    <span class="badge">Python 3.11+</span><span class="badge">FastAPI 0.139</span>
+    <span class="badge">LangGraph 1.2</span><span class="badge">Milvus 2.4</span>
+    <span class="badge">MCP Protocol</span><span class="badge">Redis Streams</span>
+    <span class="badge">SSE 流式</span><span class="badge">RAG 混合检索</span>
+  </div>
+  <div class="spec">评分维度对照：功能实现及技术要求 (45%) | 配套文档丰富度 (10%)</div>
+  <div class="meta"><p>版本: V3 | 日期: __DATE__ | 许可证: MIT | 赛题: 多智能体协同高校全专业个性化导学与资源生成平台</p></div>
+</div>
+
+<!-- ═══════════════ TOC ═══════════════ -->
+<div class="toc">
+  <h2>📑 目录</h2>
+  <ul>
+    <li><a href="#s1">1. 项目概述与总体技术方案</a></li>
+    <li class="l2"><a href="#s1.1">1.1 项目背景与赛题对应</a></li>
+    <li class="l2"><a href="#s1.2">1.2 核心功能与技术创新点</a></li>
+    <li class="l2"><a href="#s1.3">1.3 总体架构设计</a></li>
+    <li><a href="#s2">2. 智能体编排引擎 — 技术实现</a></li>
+    <li class="l2"><a href="#s2.1">2.1 LangGraph 确定性状态机</a></li>
+    <li class="l2"><a href="#s2.2">2.2 Plan-Execute-Replan 闭环</a></li>
+    <li class="l2"><a href="#s2.3">2.3 教育 6 Agent fan-out/fan-in</a></li>
+    <li class="l2"><a href="#s2.4">2.4 Deep 证据图多 Agent 取证</a></li>
+    <li class="l2"><a href="#s2.5">2.5 Agent 状态管理与通信</a></li>
+    <li><a href="#s3">3. RAG 增强检索 — 技术实现</a></li>
+    <li class="l2"><a href="#s3.1">3.1 文档预处理管道</a></li>
+    <li class="l2"><a href="#s3.2">3.2 混合检索 + RRF + Rerank</a></li>
+    <li class="l2"><a href="#s3.3">3.3 检索评测体系</a></li>
+    <li><a href="#s4">4. 任务队列与后台消费</a></li>
+    <li><a href="#s5">5. MCP 工具协议集成</a></li>
+    <li><a href="#s6">6. API 设计与 SSE 流式</a></li>
+    <li><a href="#s7">7. 数据库设计与审计</a></li>
+    <li><a href="#s8">8. 前端工作台</a></li>
+    <li><a href="#s9">9. 评测体系与压测</a></li>
+    <li><a href="#s10">10. 部署与运维</a></li>
+    <li class="l2"><a href="#s10.1">10.1 环境要求与启动</a></li>
+    <li class="l2"><a href="#s10.2">10.2 Docker 容器化部署</a></li>
+    <li class="l2"><a href="#s10.3">10.3 配置参考</a></li>
+    <li><a href="#s11">11. 项目结构与代码组织</a></li>
+    <li><a href="#s12">12. 版本演进与路线图</a></li>
+    <li><a href="#s13">13. 许可证与致谢</a></li>
+    <li><a href="#s14">附录A: API 完整参考</a></li>
+    <li><a href="#s15">附录B: 常见问题排查</a></li>
+  </ul>
+</div>
+
+<!-- ═══════════════ 1. 项目概述 ═══════════════ -->
+<h1 id="s1">1. 项目概述与总体技术方案</h1>
+
+<h2 id="s1.1">1.1 项目背景与赛题对应</h2>
+
+<p>本项目对应赛题 <b>"多智能体协同高校全专业个性化导学与资源生成平台"</b>，同时扩展了 AIOps 智能运维诊断场景以展示多智能体协同的通用性。两个场景共用同一套技术基础设施，体现了系统架构的复用性和扩展能力。</p>
+
+<table>
+<tr><th>维度</th><th>教育导学场景</th><th>AIOps 诊断场景</th></tr>
+<tr><td><b>Agent 数量</b></td><td>6 个教育 Agent</td><td>4 个取证 Agent + Skill Router</td></tr>
+<tr><td><b>编排模式</b></td><td>fan-out / fan-in 并行</td><td>Plan-Execute-Replan 循环 + 并行取证</td></tr>
+<tr><td><b>知识增强</b></td><td>课程知识库 RAG 检索</td><td>SOP/Runbook + 历史经验 RAG</td></tr>
+<tr><td><b>输出形式</b></td><td>学习方案 (画像+资源+路径+评估)</td><td>诊断报告 + 修复建议</td></tr>
+<tr><td><b>交互方式</b></td><td>SSE 流式 + REST API</td><td>SSE + Webhook + 后台队列</td></tr>
+</table>
+
+__SCREENSHOT__
+
+<h2 id="s1.2">1.2 核心功能与技术创新点</h2>
+
+<div class="feature-grid">
+  <div class="feature-card"><h4>🧠 LangGraph 确定性编排</h4><p>基于有向图的状态机，非黑盒自主决策。6 教育 Agent fan-out 并行，4 诊断 Agent 隔离取证。支持 Supervisor+Handoff Skill 切换，tried_skills 失败记忆防重复。</p></div>
+  <div class="feature-card"><h4>🔍 Parent-Child + 混合 RAG</h4><p>Parent-Child chunking (800字大粒度+语义完整小片段)。Vector(BGE-M3) + BM25 混合检索，RRF 融合，BGE-Reranker-v2-m3 本地 Cross-Encoder 精排。</p></div>
+  <div class="feature-card"><h4>📡 SSE 流式 Agent 输出</h4><p>每完成一个 Agent 节点即通过 SSE 推送结果。用户实时看到 Profile → Knowledge → Resource → Path → Tutor → Eval 进度。</p></div>
+  <div class="feature-card"><h4>🔄 双模式诊断引擎</h4><p>fast: Skill Router → Plan-Execute-Replan (单Agent循环)；deep: 6 Agent 证据归并+RCA。通过 Redis Streams 后台异步消费。</p></div>
+  <div class="feature-card"><h4>🔧 MCP 工具协议</h4><p>5 个 MCP Server (system/network/docker/websearch/winlog)，Agent 通过标准 MCP 协议发现和调用工具，松耦合可扩展。</p></div>
+  <div class="feature-card"><h4>🛡 审计与权限</h4><p>PostgreSQL 全链路审计 (alert→incident→task→agent_run→tool_call→evidence)。高风险操作需人工审批。LLM Wiki 经验自动沉淀。</p></div>
+  <div class="feature-card"><h4>📊 8 维学情画像</h4><p>ProfileAgent 通过自然语言对话自动抽取：知识基础、认知风格、学习目标、薄弱点、学习节奏、兴趣方向、前置知识、资源偏好。支持增量更新。</p></div>
+  <div class="feature-card"><h4>🎯 8 类资源生成</h4><p>ResourceAgent 生成：学习文档、PPT大纲、练习题、视频脚本、代码案例、互动练习、实验指导、项目方案。全部通过 LLM 结构化生成。</p></div>
+  <div class="feature-card"><h4>📈 可量化评测</h4><p>内置 RAG 检索 Recall@K/MRR/NDCG + RAGAS Faithfulness/Relevancy/Precision + OpenEvals 端到端评测 + 并发压测脚本。</p></div>
+  <div class="feature-card"><h4>🏫 完整校园场景</h4><p>课程管理 CRUD + 学习日历(动态月历+事件) + 同学协作(小组/讨论/伙伴匹配) + 智能答疑(SSE RAG Chat) + 知识百科。</p></div>
+</div>
+
+<h2 id="s1.3">1.3 总体架构设计</h2>
+
+<div class="arch-diagram">__ARCH_OVERVIEW__</div>
+
+<p>架构分为 <b>5 层</b>：</p>
+<ol>
+  <li><b>前端层</b> — Vue-like SPA 单页应用，通过 SSE EventSource 连接 API 实现流式交互</li>
+  <li><b>API 网关层</b> — FastAPI 统一入口，中间件处理 CORS/限流/日志；lifespan 管理 Milvus/Postgres/Redis/MCP 生命周期</li>
+  <li><b>Worker 消费层</b> — 3 个独立进程从 Redis Streams 消费诊断任务，支持水平扩展和优先级消费</li>
+  <li><b>执行引擎层</b> — Diagnosis Runner 统一调度 fast/deep 双图 + Education Graph</li>
+  <li><b>基础设施层</b> — Milvus(向量库) + PostgreSQL(审计) + Redis(队列) + MCP(工具) + MinIO(对象存储) + etcd(元数据)</li>
+</ol>
+
+<div class="arch-diagram">__LANGGRAPH_STATE__</div>
+<p style="text-align:center;font-size:11px;color:#888;margin-top:4px;">图: LangGraph 状态机 — Skill Router → Planner → Executor → Replanner 闭环</p>
+
+<!-- ═══════════════ 2. 智能体编排引擎 ═══════════════ -->
+<h1 id="s2">2. 智能体编排引擎 — 技术实现</h1>
+
+<h2 id="s2.1">2.1 LangGraph 确定性状态机</h2>
+
+<p>本项目的核心编排引擎基于 <b>LangGraph StateGraph</b>，用有向图定义 Agent 之间的协作关系。与简单的链式调用不同，LangGraph 提供了：</p>
+<ul>
+  <li><b>条件边 (Conditional Edge)</b> — Replanner 根据 `response` 字段是否为空，三向路由到 Executor/Planner/END</li>
+  <li><b>状态 Reducer</b> — `past_steps` 使用 `operator.add` 累加器，每次执行自动追加而非覆盖；`tried_skills` 同理</li>
+  <li><b>节点隔离</b> — 每个节点函数接收完整 State，返回部分更新 (Partial State)，由 LangGraph 合并</li>
+  <li><b>流式输出</b> — `graph.astream()` 每完成一个节点就 yield 一次，支持 SSE 推送</li>
+</ul>
+
+<h3>关键代码模式 — 状态定义</h3>
+<pre><code># app/agents/state.py — PlanExecuteState 核心状态
+class PlanExecuteState(TypedDict, total=False):
+    input: str                          # 用户原始输入
+    selected_skill: str                 # Skill Router 选中的 Skill
+    plan: List[str]                     # 待执行步骤列表
+    past_steps: Annotated[List[Tuple[str, str]], operator.add]  # 已执行步骤 (累加)
+    response: str                       # 最终报告 (非空→触发END)
+    iteration: int                      # 防死循环硬计数器
+    tried_skills: Annotated[List[TriedSkill], operator.add]     # 失败记忆 (累加)
+    pending_reroute: bool               # 是否触发 Skill 切换
+    transition_history: Annotated[List[StateTransition], operator.add]  # 审计时间线</code></pre>
+
+<h3>图的构建</h3>
+<pre><code># app/agents/graph.py — 图结构
+graph = StateGraph(PlanExecuteState)
+graph.add_node("skill_router", skill_router_node)
+graph.add_node("planner", plan_node)
+graph.add_node("executor", execute_node)
+graph.add_node("replanner", replan_node)
+
+graph.add_edge(START, "skill_router")
+graph.add_conditional_edges("skill_router", should_end, {"planner": "planner", END: END})
+graph.add_edge("planner", "executor")
+graph.add_conditional_edges("replanner", should_end, {
+    "executor": "executor",
+    "planner": "planner",  # Skill reroute
+    END: END
+})</code></pre>
+
+<h2 id="s2.2">2.2 Plan-Execute-Replan 闭环 (fast 模式)</h2>
+
+<p>fast 模式是日常故障诊断的主链路，四个节点形成闭环：</p>
+
+<table>
+<tr><th>节点</th><th>输入</th><th>处理逻辑</th><th>输出</th></tr>
+<tr><td><b>SkillRouter</b></td><td>用户输入 + alert_signature</td><td>LLM 在 Skill 菜单中选一个，给理由。若有历史签名，召回对应经验注入上下文</td><td>selected_skill + skill_reason</td></tr>
+<tr><td><b>Planner</b></td><td>selected_skill + 用户输入</td><td>基于 Skill 的 Playbook (YAML定义)，LLM 制定 4-6 步诊断计划</td><td>plan: List[str]</td></tr>
+<tr><td><b>Executor</b></td><td>plan[0] + 历史 steps</td><td>执行 plan 的第一步：调用 MCP 工具获取实际数据(CPU/内存/日志等)，结果记入 past_steps</td><td>past_steps 追加一条</td></tr>
+<tr><td><b>Replanner</b></td><td>所有 past_steps + plan</td><td>评估进度：is_finished? → 生成报告; 继续? → 更新plan; 切Skill? → should_reroute</td><td>response 或 plan 或 reroute 信号</td></tr>
+</table>
+
+<h3>Replanner 结构化输出 (Pydantic Schema)</h3>
+<pre><code>class Act(BaseModel):
+    is_finished: bool           # 诊断是否完成
+    plan: List[str] = []        # 剩余步骤 (is_finished=false)
+    response: str = ""          # 诊断报告 Markdown (is_finished=true)
+    should_reroute: bool = False  # 是否切换 Skill
+    new_skill: str = ""         # 目标 Skill
+    reroute_reason: str = ""    # 切换原因 (写入tried_skills)</code></pre>
+
+<h2 id="s2.3">2.3 教育 6 Agent fan-out / fan-in 编排</h2>
+
+<div class="flow-diagram">__EDU_FANOUT__</div>
+
+<p>教育导学图采用 <b>fan-out/fan-in</b> 并行模式，与 AIOps 的循环模式互补：</p>
+
+<pre><code># app/education_graph/graph.py — 教育图
+graph = StateGraph(EducationState)
+
+# 顺序阶段
+graph.add_node("student_context", student_context_node)
+graph.add_node("resource_plan", resource_plan_node)
+
+# fan-out: 6个Agent同时运行 (LangGraph Send API)
+graph.add_node("profile_agent", profile_agent_node)
+graph.add_node("knowledge_agent", knowledge_agent_node)
+graph.add_node("resource_agent", resource_agent_node)
+graph.add_node("path_agent", path_agent_node)
+graph.add_node("tutor_agent", tutor_agent_node)
+graph.add_node("eval_agent", eval_agent_node)
+
+# fan-in: 汇聚所有Agent输出
+graph.add_node("resource_integrator", resource_integrator_node)
+graph.add_node("quality_reviewer", quality_reviewer_node)
+graph.add_node("learning_advisor", learning_advisor_node)
+graph.add_node("report_agent", report_agent_node)</code></pre>
+
+<h3>ProfileAgent 学情画像维度</h3>
+<table>
+<tr><th>维度</th><th>字段</th><th>评分/类型</th><th>说明</th></tr>
+<tr><td>知识基础</td><td>knowledge_base</td><td>0-100 + 入门/基础/进阶/精通</td><td>专业知识掌握程度</td></tr>
+<tr><td>认知风格</td><td>cognitive_style</td><td>视觉/听觉/动手/阅读</td><td>学习偏好方式</td></tr>
+<tr><td>学习目标</td><td>learning_goals</td><td>短期/中期/长期 + clarity 0-100</td><td>目标明确度</td></tr>
+<tr><td>薄弱点</td><td>weakness_patterns</td><td>List[{topic, error_type, frequency}]</td><td>常犯错误类型</td></tr>
+<tr><td>学习节奏</td><td>learning_pace</td><td>快/中/慢 + session_minutes</td><td>单次学习时长</td></tr>
+<tr><td>兴趣方向</td><td>interest_domains</td><td>List[{domain, enthusiasm 0-100}]</td><td>专业子领域偏好</td></tr>
+<tr><td>前置知识</td><td>prerequisites</td><td>List[{course, mastery 0-100}]</td><td>已修相关课程</td></tr>
+<tr><td>资源偏好</td><td>resource_preference</td><td>{documents, videos, code, interactive}</td><td>四维偏好评分</td></tr>
+<tr><td>学业状态</td><td>academic_status</td><td>{semester, credits, GPA}</td><td>校园场景要素</td></tr>
+</table>
+
+<h3>教育导学时序交互</h3>
+<div class="flow-diagram">__SEQ_EDUCATION__</div>
+
+<h2 id="s2.4">2.4 Deep 证据图 — 多 Agent 并行取证</h2>
+
+<div class="flow-diagram">__DEEP_EVIDENCE__</div>
+
+<p>Deep 模式处理复杂故障，通过<b>证据驱动的并行取证</b>提高根因分析的准确性：</p>
+<ol>
+  <li><b>IncidentManager</b> — 接收告警/手动提交，创建 incident + task，写入 Postgres</li>
+  <li><b>CorrelationContext</b> — 时间窗口(默认15分钟)内关联告警聚合，构建上下文</li>
+  <li><b>EvidencePlan</b> — 基于故障假设列表，为每个假设规划取证方向</li>
+  <li><b>4 Agent 并行取证</b> — MetricAgent(时序指标)、LogAgent(日志模式)、InfraAgent(基础设施)、RunbookAgent(SOP匹配) 同时收集证据</li>
+  <li><b>EvidenceReducer</b> — 汇聚证据列表，去重、冲突消解、置信度评估</li>
+  <li><b>RCAJudge</b> — 基于证据链进行贝叶斯式根因推理</li>
+  <li><b>RemediationPlanner</b> — 生成分级修复建议 (立即/短期/长期) + 回滚方案</li>
+  <li><b>ReportAgent</b> — 格式化 Markdown 诊断报告，触发 LLM Wiki 经验沉淀</li>
+</ol>
+
+<h2 id="s2.5">2.5 Agent 状态管理与通信</h2>
+
+<h3>Agent Runtime 统一管理 (AgentHarness)</h3>
+<pre><code># app/runtime/agent_harness.py — 统一 Agent 运行时
+class AgentHarness:
+    """管理模型选择、token预算、降级策略、重试逻辑"""
+    def get_chat_llm(self, step: str) -> ChatOpenAI:
+        # 根据 step 类型自动选择模型:
+        #   router/planner → deepseek-v4-flash (快)
+        #   executor/report → deepseek-v4-pro (准)
+        # 统一处理: 超时/限流重试/降级到本地Ollama
+
+    def track_budget(self, tokens: int):
+        # 单次诊断 token 预算控制
+
+    def should_degrade(self) -> bool:
+        # 连续失败 → 降级到更轻量模型</code></pre>
+
+<h3>StateTransition 审计链</h3>
+<pre><code>class StateTransition(TypedDict):
+    node: str           # 当前节点名
+    timestamp: str      # ISO 时间戳
+    from_state: str     # 进入前的关键状态摘要
+    to_state: str       # 退出后的关键状态摘要
+    decision: str       # 节点的决策逻辑简述</code></pre>
+
+<!-- ═══════════════ 3. RAG ═══════════════ -->
+<h1 id="s3">3. RAG 增强检索 — 技术实现</h1>
+
+<h2 id="s3.1">3.1 文档预处理管道</h2>
+
+<div class="flow-diagram">__RAG_PIPELINE__</div>
+
+<h3>Parent-Child Chunking 策略</h3>
+<table>
+<tr><th>参数</th><th>值</th><th>说明</th></tr>
+<tr><td>RAG_CHUNK_SIZE</td><td>800</td><td>Child 块大小 (字符)</td></tr>
+<tr><td>RAG_CHUNK_OVERLAP</td><td>100</td><td>Child 块重叠</td></tr>
+<tr><td>RAG_PARENT_MAX_CHARS</td><td>2400</td><td>Parent 上下文窗口</td></tr>
+<tr><td>RAG_TOP_K</td><td>3</td><td>最终返回块数</td></tr>
+<tr><td>RAG_RETRIEVE_K</td><td>30</td><td>初筛候选数</td></tr>
+</table>
+
+<p><b>检索逻辑</b>：用 Child 块的 embedding 做语义匹配 → 召回 Top-K Child → 返回对应 Parent 块作为 LLM 上下文。既保证了语义检索的精确性(小粒度匹配)，又提供了足够的上下文(大窗口)。</p>
+
+<h2 id="s3.2">3.2 混合检索 + RRF + Rerank 完整链路</h2>
+
+<pre><code># app/rag/retrieval.py — 混合检索核心
+def hybrid_search(query: str, top_k: int = 3):
+    # 1. Dense: BGE-M3 embedding → Milvus.search() → Top-30
+    dense_results = milvus.search(embed(query), limit=30)
+
+    # 2. Sparse: jieba分词 → BM25 → Top-30
+    sparse_results = bm25_search(query, limit=30)
+
+    # 3. RRF 融合: score_rrf = sum(1/(k+rank_i)) for each doc
+    fused = rrf_fusion(dense_results, sparse_results,
+                       weights={"dense": 0.6, "sparse": 0.4})
+    # → Top-15
+
+    # 4. Rerank: BGE-Reranker-v2-m3 Cross-Encoder
+    reranked = local_reranker.rerank(
+        query, fused, max_length=512, batch_size=8
+    )
+    # → Top-3
+
+    return reranked[:top_k]</code></pre>
+
+<h2 id="s3.3">3.3 检索评测体系</h2>
+
+<table>
+<tr><th>评测维度</th><th>指标</th><th>数据量</th><th>框架</th></tr>
+<tr><td>检索召回</td><td>Recall@3/5/10, MRR, NDCG@K</td><td>50 题 (retrieval_rk_50.jsonl)</td><td>自研 benchmark</td></tr>
+<tr><td>端到端质量</td><td>Faithfulness, Answer Relevancy, Context Precision, Context Recall</td><td>50 题 (ragas_qa_50.jsonl)</td><td>RAGAS + OpenEvals</td></tr>
+<tr><td>并发性能</td><td>QPS, P50/P99 延迟, 错误率</td><td>可配 (100-500 并发)</td><td>scripts/loadtest.py</td></tr>
+</table>
+
+<!-- ═══════════════ 4. 任务队列 ═══════════════ -->
+<h1 id="s4">4. 任务队列与后台消费</h1>
+
+<h3>Redis Streams 任务队列架构</h3>
+<pre><code># 生产者 (API)
+POST /api/v1/aiops/diagnose/submit
+  → incident_queue.push(task)        # XADD aiops:incident_tasks
+  → 返回 task_id + queue_position
+
+# 消费者 (Worker)
+while True:
+    tasks = redis.xreadgroup(group, consumer, streams, count=N)
+    for task in tasks:
+        runner.run(task)             # fast 或 deep 诊断
+        redis.xack(...)              # 确认消费
+
+# 消费者组
+GROUP: aiops_workers
+CONSUMERS: worker-1, worker-2, worker-3</code></pre>
+
+<table>
+<tr><th>特性</th><th>实现方式</th></tr>
+<tr><td>任务持久化</td><td>Redis Streams + PostgreSQL 双写</td></tr>
+<tr><td>失败重试</td><td>XACK 失败 → PEL (Pending Entries List) → Worker 重新认领</td></tr>
+<tr><td>最大重试</td><td>DIAGNOSIS_TASK_MAX_ATTEMPTS=3</td></tr>
+<tr><td>超时</td><td>DIAGNOSIS_TASK_TIMEOUT_SEC=600</td></tr>
+<tr><td>优先级</td><td>INCIDENT_QUEUE_PRIORITY_ENABLED=true → 多 Stream 按优先级消费</td></tr>
+<tr><td>并发控制</td><td>WORKER_DIAGNOSIS_CONCURRENCY=2 → 每 Worker 同时处理 2 个任务</td></tr>
+</table>
+
+<!-- ═══════════════ 5. MCP ═══════════════ -->
+<h1 id="s5">5. MCP 工具协议集成</h1>
+
+<table>
+<tr><th>MCP Server</th><th>端口</th><th>提供的工具</th><th>协议</th></tr>
+<tr><td>system_server</td><td>8005</td><td>get_cpu_usage, get_memory, get_disk, get_processes, get_uptime, get_os_info</td><td>FastMCP (stdio→HTTP bridge)</td></tr>
+<tr><td>network_server</td><td>8009</td><td>ping, traceroute, dns_lookup, check_port, http_health</td><td>FastMCP</td></tr>
+<tr><td>docker_server</td><td>8011</td><td>list_containers, container_logs, container_stats, image_list</td><td>FastMCP</td></tr>
+<tr><td>websearch_server</td><td>8006</td><td>web_search (接入 open-webSearch daemon)</td><td>FastMCP</td></tr>
+<tr><td>winlog_server</td><td>8008</td><td>query_event_log, get_recent_errors</td><td>FastMCP</td></tr>
+</table>
+
+<pre><code># app/core/mcp_client.py — MCP 客户端管理
+class MCPClientManager:
+    def __init__(self):
+        self.servers = {
+            "system":    {"url": settings.mcp_system_url},
+            "websearch": {"url": settings.mcp_websearch_url},
+            "winlog":    {"url": settings.mcp_winlog_url},
+            "network":   {"url": settings.mcp_network_url},
+            "docker":    {"url": settings.mcp_docker_url},
+        }
+
+    async def connect(self, fail_silently=True):
+        # 逐个连接 MCP Server，失败仅 warn 不影响启动
+
+    async def list_all_tools(self) -> List[Tool]:
+        # 聚合所有 MCP Server 的工具列表
+
+    async def call_tool(self, server: str, tool: str, args: dict):
+        # 调用指定 MCP Server 的工具</code></pre>
+
+<!-- ═══════════════ 6. API + SSE ═══════════════ -->
+<h1 id="s6">6. API 设计与 SSE 流式输出</h1>
+
+<h3>SSE 流式 Agent 输出</h3>
+<pre><code># app/api/v1/education.py — 教育导学 SSE
+@router.post("/learn")
+async def education_learn(req: EducationRequest, request: Request):
+    async def event_stream():
+        graph = _get_edu_graph()
+        initial_state = {"input": req.query, "student_id": req.student_id, ...}
+
+        yield {"event": "message", "data": json.dumps({
+            "type": "status", "content": "🎓 6 个 Agent 协作中..."
+        })}
+
+        # astream: 每完成一个节点就 yield
+        async for chunk in graph.astream(initial_state):
+            node_name = list(chunk.keys())[0]
+            node_output = chunk[node_name]
+
+            yield {"event": "message", "data": json.dumps({
+                "type": "agent_output",
+                "agent": AGENT_LABELS[node_name],
+                "content": format_output(node_output)
+            })}
+
+        yield {"event": "message", "data": json.dumps({
+            "type": "done", "content": "学习方案生成完成"
+        })}
+
+    return EventSourceResponse(event_stream())</code></pre>
+
+<h3>诊断 API 权限模型</h3>
+<pre><code>PERMISSION_MODE=normal  # read_only / normal / ask_destructive / bypass
+GUARDRAILS_BLOCK_HIGH_RISK_TOOLS=true  # 高风险工具需要人工审批</code></pre>
+
+<!-- ═══════════════ 7. 数据库 ═══════════════ -->
+<h1 id="s7">7. 数据库设计与审计</h1>
+
+<h3>PostgreSQL 事实库 ER 关系</h3>
+<pre><code>alerts ──→ incident_groups ──→ diagnosis_tasks
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+              agent_runs       tool_calls        evidence
+                    │
+                    ▼
+              agent_events (transition_history 持久化)
+
+reports ←── diagnosis_tasks
+wiki_pages ←── incident_groups (LLM 自动沉淀)</code></pre>
+
+<table>
+<tr><th>表</th><th>用途</th><th>关键字段</th></tr>
+<tr><td>alerts</td><td>原始告警记录</td><td>fingerprint, severity, source, raw_payload</td></tr>
+<tr><td>incident_groups</td><td>去重归并后的工单</td><td>status, alert_count, correlation_window</td></tr>
+<tr><td>diagnosis_tasks</td><td>诊断任务</td><td>mode(fast/deep), priority, attempts, status</td></tr>
+<tr><td>agent_runs</td><td>Agent 执行记录</td><td>agent_name, state_snapshot, duration_ms</td></tr>
+<tr><td>tool_calls</td><td>MCP 工具调用</td><td>server, tool_name, args, result, duration_ms</td></tr>
+<tr><td>evidence</td><td>取证结构化数据</td><td>type(metric/log/infra/runbook), content, confidence</td></tr>
+<tr><td>approval_requests</td><td>人工审批</td><td>tool, reason, status(pending/approved/denied)</td></tr>
+</table>
+
+<!-- ═══════════════ 8. 前端 ═══════════════ -->
+<h1 id="s8">8. 前端工作台</h1>
+
+<table>
+<tr><th>页面</th><th>功能</th><th>路由</th></tr>
+<tr><td>🏠 首页</td><td>仪表盘：统计概览、快速入口</td><td>/</td></tr>
+<tr><td>🔧 AIOps 诊断</td><td>手动输入诊断描述、SSE 流式展示</td><td>/diagnosis</td></tr>
+<tr><td>📋 事件中心</td><td>Incident 列表、状态筛选、详情+证据链</td><td>/incidents</td></tr>
+<tr><td>⏳ 任务队列</td><td>队列状态、Pending/Processing/DLQ</td><td>/queue</td></tr>
+<tr><td>📊 评测报告</td><td>检索评测 + RAGAS 端到端报告</td><td>/eval</td></tr>
+<tr><td>🎓 智能导学</td><td>学习需求输入、Agent 进度实时显示</td><td>/education</td></tr>
+<tr><td>📚 我的课程</td><td>课程 CRUD、进度追踪、一键导学</td><td>/courses</td></tr>
+<tr><td>📅 学习日历</td><td>动态月历、事件管理、截止提醒</td><td>/calendar</td></tr>
+<tr><td>👥 同学协作</td><td>学习小组、讨论发布、伙伴匹配</td><td>/collaboration</td></tr>
+<tr><td>💬 智能答疑</td><td>RAG Chat SSE、联网搜索切换</td><td>/chat</td></tr>
+<tr><td>📖 知识库</td><td>文档上传/管理/索引状态</td><td>/knowledge</td></tr>
+<tr><td>📝 经验 Wiki</td><td>LLM 自动沉淀的诊断经验</td><td>/wiki</td></tr>
+<tr><td>✅ 审批中心</td><td>高风险操作待审批列表</td><td>/approvals</td></tr>
+</table>
+
+<!-- ═══════════════ 9. 评测 ═══════════════ -->
+<h1 id="s9">9. 评测体系与压测</h1>
+
+<h3>评测数据集</h3>
+<table>
+<tr><th>数据文件</th><th>规模</th><th>评测内容</th></tr>
+<tr><td><code>benchmark/retrieval_rk_50.jsonl</code></td><td>50 题</td><td>每条: query + relevant_docs + expected_answer。评测 RAG 检索召回率。</td></tr>
+<tr><td><code>benchmark/ragas_qa_50.jsonl</code></td><td>50 题</td><td>每条: question + ground_truth + contexts。RAGAS 端到端评测。</td></tr>
+</table>
+
+<h3>评测指标详解</h3>
+<table>
+<tr><th>类别</th><th>指标</th><th>公式/说明</th></tr>
+<tr><td rowspan="3">检索质量</td><td>Recall@K</td><td>|检索到的相关文档| / |所有相关文档|, K=3,5,10</td></tr>
+<tr><td>MRR</td><td>Mean Reciprocal Rank: 第一个相关文档排名的倒数均值</td></tr>
+<tr><td>NDCG@K</td><td>归一化折损累计增益，考虑排序位置权重</td></tr>
+<tr><td rowspan="4">生成质量</td><td>Faithfulness</td><td>生成内容是否完全基于检索到的上下文 (0-1)</td></tr>
+<tr><td>Answer Relevancy</td><td>答案与问题的相关程度 (0-1)</td></tr>
+<tr><td>Context Precision</td><td>检索到的上下文中相关信息的比例 (0-1)</td></tr>
+<tr><td>Context Recall</td><td>ground_truth 中信息被检索到的比例 (0-1)</td></tr>
+</table>
+
+<h3>并发压测</h3>
+<pre><code># Submit 压测: 模拟大量用户同时提交诊断
+python scripts/loadtest.py submit --n 100 --concurrency 20
+
+# Webhook 压测: 模拟 Alertmanager 大量告警
+python scripts/loadtest.py webhook --n 500 --concurrency 100
+
+# 验证项: 队列backlog增长速度、Worker消费速率、DLQ积累、P50/P99延迟</code></pre>
+
+<!-- ═══════════════ 10. 部署 ═══════════════ -->
+<h1 id="s10">10. 部署与运维</h1>
+
+<h2 id="s10.1">10.1 环境要求与启动</h2>
+
+<table>
+<tr><th>组件</th><th>版本</th><th>用途</th></tr>
+<tr><td>Python</td><td>3.11+</td><td>主运行环境</td></tr>
+<tr><td>Docker</td><td>29+</td><td>基础设施容器化</td></tr>
+<tr><td>LLM API Key</td><td>DeepSeek / DashScope</td><td>至少一个可用</td></tr>
+<tr><td>Ollama (可选)</td><td>最新</td><td>本地 Embedding (bge-m3)</td></tr>
+</table>
+
+<pre><code># 1. 环境准备
+git clone &lt;repo-url&gt; && cd mutil-rag-agent
+cp .env.example .env  # 编辑填入 DEEPSEEK_API_KEY
+
+# 2. 启动基础设施 (6 个 Docker 服务)
+docker compose up -d
+
+# 3. 导入知识库
+python scripts/ingest_kb_corpus.py --reset
+
+# 4. 启动 API
+python -m uvicorn app.main:app --host 0.0.0.0 --port 9900
+
+# 5. (可选) 启动 Worker
+python -m app.diagnosis_worker --name worker-1</code></pre>
+
+<h2 id="s10.2">10.2 Docker 容器化部署</h2>
+
+<table>
+<tr><th>服务</th><th>容器名</th><th>端口</th></tr>
+<tr><td>Milvus Standalone</td><td>multi-agent-milvus</td><td>19530, 9091</td></tr>
+<tr><td>etcd</td><td>multi-agent-etcd</td><td>2379</td></tr>
+<tr><td>MinIO</td><td>multi-agent-minio</td><td>9001</td></tr>
+<tr><td>Attu (Milvus UI)</td><td>multi-agent-attu</td><td>8000</td></tr>
+<tr><td>Redis</td><td>multi-agent-redis</td><td>6379</td></tr>
+<tr><td>PostgreSQL</td><td>multi-agent-postgres</td><td>5433</td></tr>
+<tr><td>open-webSearch</td><td>multi-agent-open-websearch</td><td>3210</td></tr>
+</table>
+
+<pre><code># 完整栈 (API + 3 Worker + 5 MCP):
+docker compose --profile app up -d --build</code></pre>
+
+<h2 id="s10.3">10.3 配置参考</h2>
+
+<table>
+<tr><th>配置项</th><th>默认值</th><th>说明</th></tr>
+<tr><td>DEEPSEEK_API_KEY</td><td>(必填)</td><td>LLM API Key</td></tr>
+<tr><td>DASHSCOPE_API_KEY</td><td>(必填)</td><td>备用 LLM</td></tr>
+<tr><td>EMBEDDING_PROVIDER</td><td>ollama</td><td>ollama / dashscope</td></tr>
+<tr><td>OLLAMA_EMBEDDING_MODEL</td><td>bge-m3</td><td>本地 Embedding 模型</td></tr>
+<tr><td>RAG_TOP_K</td><td>3</td><td>返回结果数</td></tr>
+<tr><td>RAG_HYBRID_ENABLED</td><td>true</td><td>启用混合检索</td></tr>
+<tr><td>RAG_RERANK_ENABLED</td><td>true</td><td>启用本地 Rerank</td></tr>
+<tr><td>RAG_CHAT_MEMORY_ENABLED</td><td>true</td><td>对话记忆</td></tr>
+<tr><td>INCIDENT_PIPELINE_ENABLED</td><td>true</td><td>事件管道</td></tr>
+<tr><td>AGENT_MAX_STEPS</td><td>5</td><td>诊断最大步数</td></tr>
+<tr><td>PERMISSION_MODE</td><td>normal</td><td>工具权限模式</td></tr>
+<tr><td>KB_ADMIN_TOKEN</td><td>change-this-...</td><td>知识库管理 Token</td></tr>
+</table>
+
+<!-- ═══════════════ 11. 项目结构 ═══════════════ -->
+<h1 id="s11">11. 项目结构与代码组织</h1>
+
+<pre><code>mutil-rag-agent/
+├── app/
+│   ├── main.py                     # FastAPI 入口 + lifespan 管理
+│   ├── config.py                   # Pydantic Settings (100+ 配置项)
+│   ├── logging_config.py           # Loguru 结构化日志
+│   ├── exceptions.py               # 业务异常体系
+│   ├── agents/                     # 🧠 Agent 定义
+│   │   ├── state.py                # PlanExecuteState (TypedDict)
+│   │   ├── state_deep.py           # Deep 模式状态
+│   │   ├── state_education.py      # EducationState
+│   │   ├── graph.py                # fast: LangGraph 图编排
+│   │   ├── skill_router.py         # Skill 路由器
+│   │   ├── planner.py              # 计划生成 (LLM结构化输出)
+│   │   ├── executor.py             # 步骤执行 (MCP工具调用)
+│   │   ├── replanner.py            # 进度评估 + Reroute
+│   │   ├── education/              # 🎓 教育 6 Agent
+│   │   │   ├── profile_agent.py    # 学情画像构建
+│   │   │   ├── knowledge_agent.py  # 知识点解析 + RAG
+│   │   │   ├── resource_agent.py   # 8 类资源生成
+│   │   │   ├── path_agent.py       # 学习路径规划
+│   │   │   ├── tutor_agent.py      # 智能辅导答疑
+│   │   │   └── eval_agent.py       # 学习评估
+│   │   └── subagents/              # 🔧 诊断子 Agent
+│   │       ├── metric_agent.py     # 指标取证
+│   │       ├── log_agent.py        # 日志取证
+│   │       ├── infra_agent.py      # 基础设施取证
+│   │       ├── runbook_agent.py    # SOP 匹配
+│   │       └── registry.py         # 子Agent注册中心
+│   ├── api/v1/                     # 🌐 REST API (14 个路由模块)
+│   │   ├── education.py            # 教育导学 (SSE)
+│   │   ├── aiops.py                # AIOps 诊断 (SSE + Submit)
+│   │   ├── chat.py                 # RAG Chat (SSE)
+│   │   ├── webhook.py              # Alertmanager Webhook
+│   │   ├── incidents.py            # 事件中心
+│   │   ├── queue.py                # 队列状态
+│   │   ├── skills.py               # Skill 列表
+│   │   ├── documents.py            # 知识库管理
+│   │   ├── wiki.py                 # LLM Wiki
+│   │   ├── approvals.py            # 审批管理
+│   │   ├── courses.py              # 课程管理
+│   │   ├── calendar.py             # 学习日历
+│   │   ├── collaboration.py        # 同学协作
+│   │   └── eval.py                 # 评测接口
+│   ├── core/                       # 🔌 基础设施连接
+│   │   ├── milvus.py               # Milvus Client 封装
+│   │   └── mcp_client.py           # MCP Client 管理 (5 Server)
+│   ├── db/postgres.py              # PostgreSQL (asyncpg)
+│   ├── diagnosis_graphs/           # Deep 证据图
+│   ├── education_graph/            # 教育 fan-out/fan-in 图
+│   ├── orchestration/              # 诊断编排引擎
+│   ├── queue/redis_streams.py      # Redis Streams 队列
+│   ├── rag/retrieval.py            # RAG 混合检索核心
+│   ├── runtime/                    # Agent 运行时
+│   │   ├── agent_harness.py        # 统一模型/预算/降级
+│   │   └── transitions.py          # StateTransition 审计
+│   ├── skills/definitions/         # Skill Playbook (YAML)
+│   │   ├── host_resource_diagnosis/
+│   │   ├── container_diagnosis/
+│   │   ├── network_diagnosis/
+│   │   └── generic_oncall/
+│   ├── services/rag/               # RAG 服务层
+│   │   ├── memory.py               # 对话记忆 (Redis)
+│   │   └── web_context.py          # 联网搜索上下文
+│   └── wiki/store.py               # LLM Wiki 存储
+├── frontend/                       # 🖥 Web UI (SPA)
+│   ├── index.html
+│   ├── app.js / app_analysis.js / app_extra.js
+│   └── styles.css
+├── benchmark/                      # 📊 评测
+│   ├── run_benchmark.py            # 评测入口
+│   ├── retrieval_rk_50.jsonl       # 检索评测集
+│   ├── ragas_qa_50.jsonl           # RAGAS 评测集
+│   └── reports/                    # 评测报告
+├── mcp_servers/                    # 🔧 MCP 工具服务
+│   ├── system_server.py
+│   ├── network_server.py
+│   ├── docker_server.py
+│   ├── websearch_server.py
+│   └── winlog_server.py
+├── scripts/                        # 🛠 运维脚本
+│   ├── ingest_kb_corpus.py         # 知识库导入
+│   ├── loadtest.py                 # 并发压测
+│   └── mock_alert.py              # 告警模拟
+├── data/
+│   ├── kb_corpus/                  # 知识语料 (edu + Prometheus)
+│   └── wiki/                       # 经验沉淀 (不提交)
+├── docs/sop/                       # Redis/MySQL 告警 SOP
+├── open-webSearch-main/            # 本地搜索 daemon
+├── docker-compose.yml              # 6 基础设施 + app profile
+├── Dockerfile                      # 应用镜像
+├── requirements.txt                # 依赖清单
+└── .env.example                    # 环境变量模板
+</code></pre>
+
+<!-- ═══════════════ 12. 版本演进 ═══════════════ -->
+<h1 id="s12">12. 版本演进与路线图</h1>
+
+<table>
+<tr><th>版本</th><th>核心能力</th><th>新增</th><th>局限</th></tr>
+<tr><td><b>V1</b></td><td>基础诊断闭环</td><td>Skill Router + Plan-Execute-Replan + Report</td><td>无持久化、无后台、无审计</td></tr>
+<tr><td><b>V2</b></td><td>Agent Runtime 统一</td><td>AgentHarness (模型/预算/降级)、本地 WebSearch 替代 Tavily</td><td>仍为同步模式</td></tr>
+<tr><td><b>V3</b> (当前)</td><td>双场景+后台化+审计</td><td>fast/deep 双图、Redis Streams 队列、PostgreSQL 审计、LLM Wiki、教育 6 Agent、校园场景、评测体系</td><td>—</td></tr>
+<tr><td><b>V4</b> (规划)</td><td>自适应 Agent 生成</td><td>自动生成新 Skill、知识图谱增强 RCA、多模态证据(图表理解)</td><td>—</td></tr>
+</table>
+
+<!-- ═══════════════ 13. 许可证 ═══════════════ -->
+<h1 id="s13">13. 许可证与致谢</h1>
+
+<p>本项目代码以 <b>MIT License</b> 发布。</p>
+<p>集成/参考的第三方资产：</p>
+<ul>
+  <li><b>Aas-ee/open-webSearch</b> — 本地联网搜索 daemon</li>
+  <li><b>samber/awesome-prometheus-alerts</b> — Prometheus 告警语料 (CC BY 4.0)</li>
+  <li><b>BAAI/bge-m3, BAAI/bge-reranker-v2-m3</b> — Embedding &amp; Rerank 模型</li>
+  <li>小林 OnCall Agent — 参考诊断流程设计</li>
+</ul>
+<p>📹 <b>项目视频:</b> <a href="https://www.bilibili.com/video/BV182RCBGEod/">B站演示</a></p>
+
+<!-- ═══════════════ 附录A ═══════════════ -->
+<h1 id="s14">附录A: API 完整参考</h1>
+
+<h3>教育导学 API</h3>
+<table>
+<tr><th>功能</th><th>方法</th><th>路径</th><th>请求体/参数</th></tr>
+<tr><td>多Agent学习(SSE)</td><td>POST</td><td><code>/api/v1/education/learn</code></td><td>{query, mode, student_id, course, chapter}</td></tr>
+<tr><td>学情画像构建</td><td>POST</td><td><code>/api/v1/education/profile</code></td><td>{student_id, query, major, grade}</td></tr>
+<tr><td>练习题生成</td><td>POST</td><td><code>/api/v1/education/quiz</code></td><td>{topic, difficulty, count, question_types}</td></tr>
+<tr><td>智能答疑</td><td>POST</td><td><code>/api/v1/education/tutor</code></td><td>{query, context, student_id}</td></tr>
+<tr><td>学习评估</td><td>GET</td><td><code>/api/v1/education/eval</code></td><td>?student_id=&course=</td></tr>
+</table>
+
+<h3>AIOps 诊断 API</h3>
+<table>
+<tr><th>功能</th><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>诊断(SSE)</td><td>POST</td><td><code>/api/v1/aiops/diagnose</code></td><td>{query, mode: "fast"|"deep"}</td></tr>
+<tr><td>后台提交</td><td>POST</td><td><code>/api/v1/aiops/diagnose/submit</code></td><td>{query, priority, mode}</td></tr>
+<tr><td>Webhook</td><td>POST</td><td><code>/api/v1/webhook/alertmanager</code></td><td>Alertmanager JSON</td></tr>
+<tr><td>队列状态</td><td>GET</td><td><code>/api/v1/queue/status</code></td><td>—</td></tr>
+<tr><td>队列详情</td><td>GET</td><td><code>/api/v1/queue/status/detail</code></td><td>?stream=&group=</td></tr>
+</table>
+
+<h3>通用 API</h3>
+<table>
+<tr><th>功能</th><th>方法</th><th>路径</th></tr>
+<tr><td>RAG Chat (SSE)</td><td>POST</td><td><code>/api/v1/chat/stream</code></td></tr>
+<tr><td>Skill 列表</td><td>GET</td><td><code>/api/v1/skills</code></td></tr>
+<tr><td>文档上传</td><td>POST</td><td><code>/api/v1/documents/upload</code></td></tr>
+<tr><td>文档列表</td><td>GET</td><td><code>/api/v1/documents</code></td></tr>
+<tr><td>文档删除</td><td>DELETE</td><td><code>/api/v1/documents/__SOURCE__</code></td></tr>
+<tr><td>课程 CRUD</td><td>GET/POST/PUT/DELETE</td><td><code>/api/v1/courses/...</code></td></tr>
+<tr><td>日历 CRUD</td><td>GET/POST/PUT/DELETE</td><td><code>/api/v1/calendar/...</code></td></tr>
+<tr><td>协作 CRUD</td><td>GET/POST/PUT/DELETE</td><td><code>/api/v1/collaboration/...</code></td></tr>
+<tr><td>审批管理</td><td>GET/POST</td><td><code>/api/v1/approvals/...</code></td></tr>
+<tr><td>Wiki 经验</td><td>GET/POST</td><td><code>/api/v1/wiki/...</code></td></tr>
+<tr><td>健康检查</td><td>GET</td><td><code>/api/v1/health</code></td></tr>
+<tr><td>就绪检查</td><td>GET</td><td><code>/api/v1/health/ready</code></td></tr>
+</table>
+
+<div class="callout info"><b>认证:</b> 知识库上传/删除需要 Header <code>X-KB-Admin-Token</code>，值在 .env 的 KB_ADMIN_TOKEN 配置。</div>
+
+<!-- ═══════════════ 附录B ═══════════════ -->
+<h1 id="s15">附录B: 常见问题排查</h1>
+
+<table>
+<tr><th>问题</th><th>原因</th><th>解决方案</th></tr>
+<tr><td>API 启动报 fcntl 错误</td><td>Windows 缺少 Linux 专有模块</td><td>参考 DEPLOY.md §8.1: 用 msvcrt 替换 fcntl</td></tr>
+<tr><td>DEEPSEEK_API_KEY 未配置</td><td>.env 未填或格式错误</td><td>编辑 .env，填写真实 API Key</td></tr>
+<tr><td>PostgreSQL 连接失败</td><td>端口 5433 被占用或容器未启动</td><td>检查 docker ps | grep postgres，检查端口占用</td></tr>
+<tr><td>Milvus 连接失败</td><td>Milvus 容器未就绪</td><td>等待 healthy 后再启动 API (约 90s)</td></tr>
+<tr><td>MCP 连接 Warning</td><td>MCP Server 未单独启动</td><td>不影响 API 和 Web UI；需要诊断功能时按需启动</td></tr>
+<tr><td>RAG Chat 无结果</td><td>知识库未导入</td><td>运行 scripts/ingest_kb_corpus.py --reset</td></tr>
+<tr><td>容器端口冲突</td><td>其他项目占用相同端口</td><td>停止其他项目的 docker compose，或修改端口映射</td></tr>
+<tr><td>Worker 不消费任务</td><td>Redis 连接失败或 Stream 未创建</td><td>检查 Redis 状态，查看 Worker 日志</td></tr>
+</table>
+
+<div class="footer-note">
+  <p>Multi-Agent RAG Platform V3 — 多智能体协同平台项目技术说明文档</p>
+  <p>生成日期: __DATE__ | Python 3.11+ | FastAPI | LangGraph | Milvus | MCP | Redis Streams</p>
+  <p>评分维度: 功能实现及技术要求 (45%) | 配套文档丰富度 (10%)</p>
+</div>
+
+</body>
+</html>

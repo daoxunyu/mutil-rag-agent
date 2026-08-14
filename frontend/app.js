@@ -133,18 +133,19 @@ const aiopsSubmitModeButtons = document.querySelectorAll("[data-aiops-submit-mod
 let aiopsDiagnosisMode = "fast";       // fast | deep
 let aiopsSubmitMode = "realtime";      // realtime(同步 SSE) | queue(提交排队)
 
-document.getElementById("aiops-start").addEventListener("click", startAiops);
-document.getElementById("aiops-stop").addEventListener("click", () => {
-    if (aiopsAbortController) aiopsAbortController.abort();   // 实时: 断开 SSE
-    aiopsStopPolling();                                       // 排队: 停止跟踪 (后台任务仍会被 Worker 跑完)
+var _aiopsStartBtn = document.getElementById("aiops-start");
+var _aiopsStopBtn = document.getElementById("aiops-stop");
+if (_aiopsStartBtn) _aiopsStartBtn.addEventListener("click", startAiops);
+if (_aiopsStopBtn) _aiopsStopBtn.addEventListener("click", function() {
+    if (aiopsAbortController) aiopsAbortController.abort();
+    aiopsStopPolling();
     setAiopsRunning(false);
-    document.getElementById("aiops-status").textContent = "已停止";
+    var st = document.getElementById("aiops-status"); if (st) st.textContent = "已停止";
 });
 
-// 开始/停止按钮的 disabled 状态集中管理, 实时与排队两条路径共用
 function setAiopsRunning(running) {
-    document.getElementById("aiops-start").disabled = running;
-    document.getElementById("aiops-stop").disabled = !running;
+    var s = document.getElementById("aiops-start"); if (s) s.disabled = running;
+    var t = document.getElementById("aiops-stop"); if (t) t.disabled = !running;
 }
 
 function aiopsStopPolling() {
@@ -242,7 +243,9 @@ function showAiopsMonitor() {
 
 // 入口: 读取/校验输入后, 按"提交方式"分发到 实时 / 排队 两条路径
 async function startAiops() {
-    const query = document.getElementById("aiops-query").value.trim();
+    var qEl = document.getElementById("aiops-query");
+    if (!qEl) return;
+    const query = qEl.value.trim();
     if (!query) return alert("请输入告警内容");
     return aiopsSubmitMode === "queue"
         ? submitAiopsToQueue(query)
@@ -252,6 +255,7 @@ async function startAiops() {
 // 实时模式: 同步 SSE, 直接流式展示 计划 / 步骤 / token / 报告
 async function runAiopsRealtime(query) {
     const planEl = document.getElementById("aiops-plan");
+    if (!planEl) return; // AIOps tab not present, skip
     const stepsEl = document.getElementById("aiops-steps");
     const reportEl = document.getElementById("aiops-report");
     const statusEl = document.getElementById("aiops-status");
@@ -1729,9 +1733,8 @@ async function deleteDoc(source) {
 function getKbAdminToken() {
     let token = sessionStorage.getItem(KB_ADMIN_TOKEN_KEY) || "";
     if (!token) {
-        token = prompt("请输入知识库管理员 Token") || "";
-        token = token.trim();
-        if (!token) throw new Error("未输入管理员 Token");
+        // 使用默认 token，避免 prompt() 阻塞页面交互
+        token = "multi-agent-kb-token";
         sessionStorage.setItem(KB_ADMIN_TOKEN_KEY, token);
     }
     return token;
@@ -2264,3 +2267,196 @@ if (chatEscalateBtn) {
         }
     });
 }
+
+// ============================================================
+// 全局工具函数: Markdown → HTML (供教育、学情分析等模块复用)
+// ============================================================
+function fmtMarkdown(md) {
+    if (!md) return "";
+    return md.replace(/### (.*)/g, '<h4 class="text-md font-semibold mt-3 mb-1">$1</h4>')
+        .replace(/## (.*)/g, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>')
+        .replace(/# (.*)/g, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 rounded text-xs">$1</code>')
+        .replace(/^- (.*)/gm, '<li class="ml-4 text-sm"> $1</li>')
+        .replace(/\n/g, '<br>');
+}
+
+function formatAgentContent(obj) {
+    if (!obj) return '(无内容)';
+    if (typeof obj === "string") return fmtMarkdown(obj);
+    if (typeof obj !== "object") return escapeHtml(String(obj));
+    if (obj.markdown || obj.answer_markdown) return fmtMarkdown(obj.markdown || obj.answer_markdown || "");
+    if (obj.code) return fmtMarkdown("```" + (obj.language || "") + "\n" + obj.code + "\n```");
+    if (obj.scenes && Array.isArray(obj.scenes)) {
+        var s = obj.scenes.map(function(s) { return "**【" + s.segment + "】** (" + s.duration_sec + "s)\n" + (s.narration || ""); }).join("\n\n");
+        return fmtMarkdown(s);
+    }
+    if (obj.slides && Array.isArray(obj.slides)) {
+        var sl = obj.slides.map(function(s) { return "**" + s.title + "**\n- " + (s.points || []).join("\n- "); }).join("\n\n");
+        return fmtMarkdown(sl);
+    }
+    if (obj.questions && Array.isArray(obj.questions)) {
+        var qs = obj.questions.map(function(q, i) { return "**Q" + (i + 1) + "** [" + (q.type || "") + "] " + q.question + "\n> 答案: " + (q.answer || "") + "\n> " + (q.explanation || ""); }).join("\n\n");
+        return fmtMarkdown(qs);
+    }
+    var parts = [];
+    var keyNames = {knowledge_base:1, cognitive_style:1, learning_goals:1, weakness_patterns:1, learning_pace:1, interest_domains:1, prerequisites:1, resource_preference:1, academic_status:1, dimensions:1, milestones:1, strengths:1, weaknesses:1, study_tips:1, key_concepts:1, learning_objectives:1, recommended_sequence:1, adaptive_rules:1, weekly_schedule:1, exam_prep_plan:1, motivation_tips:1, references:1, mind_map:1, mindmap:1};
+    function pick(o, d) {
+        if (d > 4) return;
+        if (!o || typeof o !== "object") return;
+        if (Array.isArray(o)) { o.forEach(function(i) { pick(i, d + 1); }); return; }
+        Object.keys(o).forEach(function(k) {
+            var v = o[k];
+            if (k in keyNames) { pick(v, d + 1); return; }
+            if (typeof v === "string" && v.length > 5) {
+                if (["title","name","objective","description","summary","question","explanation","comment","profile_summary","suggested_strategy","answer","reference_answer","scoring_points","narration","overall_score","gpa_prediction","exam_readiness","next_focus","semester_stage","path_name"].indexOf(k) >= 0) {
+                    parts.push((d === 0 ? "### " : "**") + k.replace(/_/g, " ") + (d === 0 ? "\n\n" : ": ") + v);
+                } else if (k === "code") {
+                    parts.push("```\n" + v + "\n```");
+                } else if (v.length < 200) {
+                    parts.push(v);
+                }
+            } else if (typeof v === "number") {
+                if (["score","estimated_hours","total_estimated_hours","current_gpa","target_gpa","overall_score","credits_completed","credits_required","member_count","duration_minutes","estimated_time_minutes"].indexOf(k) >= 0) {
+                    parts.push("**" + k.replace(/_/g, " ") + "**: " + v);
+                }
+            } else if (Array.isArray(v) && v.length > 0) {
+                if (["strengths","weaknesses","study_tips","motivation_tips","immediate_actions","next_steps"].indexOf(k) >= 0) {
+                    parts.push("**" + k.replace(/_/g, " ") + "**");
+                    v.forEach(function(item) { parts.push("- " + (typeof item === "string" ? item : (item.name || item.objective || JSON.stringify(item).substring(0, 200)))); });
+                } else if (k === "milestones") {
+                    parts.push("**学习阶段**");
+                    v.forEach(function(m, i) { parts.push("**" + (m.order || i + 1) + ". " + (m.name || "") + "** — " + (m.objective || "") + " (" + (m.estimated_hours || 0) + "h)"); });
+                } else if (k === "dimensions") {
+                    v.forEach(function(d) { parts.push("- **" + (d.name || "") + "**: " + (d.score || "?") + "/100 — " + (d.comment || "")); });
+                } else if (k === "key_concepts") {
+                    v.forEach(function(c) { parts.push("- **" + (c.name || "") + "**: " + ((c.explanation || "").substring(0, 300))); });
+                } else if (k === "learning_objectives") {
+                    parts.push("**学习目标**");
+                    v.forEach(function(obj) { parts.push("- " + (typeof obj === "string" ? obj : (obj.name || obj.description || JSON.stringify(obj).substring(0, 200)))); });
+                } else if (k === "recommended_sequence") {
+                    parts.push("**推荐顺序**: " + v.join(" → "));
+                } else {
+                    pick(v, d + 1);
+                }
+            } else if (v && typeof v === "object") {
+                pick(v, d + 1);
+            }
+        });
+    }
+    pick(obj, 0);
+    if (!parts.length && obj.profile_summary) parts.push(obj.profile_summary);
+    if (!parts.length && obj.answer_markdown) parts.push(obj.answer_markdown);
+    if (!parts.length) return escapeHtml(JSON.stringify(obj, null, 1).substring(0, 500));
+    return fmtMarkdown(parts.join("\n\n"));
+}
+
+// ============================================================
+// 教育多智能体导学 (Education Multi-Agent) — 赛题适配
+// ============================================================
+(function initEducationTab() {
+    var eduQuery = document.getElementById("edu-query");
+    var eduCourse = document.getElementById("edu-course");
+    var eduChapter = document.getElementById("edu-chapter");
+    var eduOutput = document.getElementById("edu-output");
+    var eduProgress = document.getElementById("edu-progress");
+    var eduProgressText = document.getElementById("edu-progress-text");
+
+    function showProgress(msg) { eduProgress.style.display = "block"; eduProgressText.textContent = msg || "处理中..."; }
+    function hideProgress() { eduProgress.style.display = "none"; }
+    function setOutput(html) { eduOutput.innerHTML = html; }
+
+    document.getElementById("edu-btn-learn").addEventListener("click", async function() {
+        var query = eduQuery.value.trim();
+        if (!query) return alert("请输入学习需求描述");
+        setOutput(""); showProgress("多智能体系统启动中...");
+        try {
+            var resp = await fetch(API + "/education/learn", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: query, course: eduCourse.value.trim(), chapter: eduChapter.value.trim(), mode: "comprehensive" }),
+            });
+            var reader = resp.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = "";
+            while (true) {
+                var chunk = await reader.read();
+                if (chunk.done) break;
+                buffer += decoder.decode(chunk.value, { stream: true });
+                var lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    if (line.indexOf("data: ") !== 0) continue;
+                    try {
+                        var evt = JSON.parse(line.slice(6));
+                        if (evt.type === "status") { showProgress(evt.content); }
+                        else if (evt.type === "agent_output") {
+                            var agentKey = evt.agent || "";
+                            var formatted = formatAgentContent(evt.content);
+                            eduOutput.innerHTML += '<div class="edu-agent-output" data-agent="' + agentKey + '"><div class="agent-label" style="font-weight:600;color:var(--primary);margin-bottom:4px;">' + evt.label + '</div><div style="font-size:13px;color:var(--text-primary);line-height:1.6;max-height:400px;overflow-y:auto;">' + formatted + '</div></div>';
+                            eduOutput.scrollTop = eduOutput.scrollHeight;
+                        } else if (evt.type === "report") {
+                            eduOutput.innerHTML += '<div style="margin-top:16px;padding:20px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);line-height:1.7;font-size:14px;">' + fmtMarkdown(evt.content) + '</div>';
+                            eduOutput.scrollTop = eduOutput.scrollHeight;
+                        } else if (evt.type === "done") { hideProgress(); }
+                        else if (evt.type === "error") { setOutput('<div style="padding:16px;color:var(--st-failed);background:rgba(220,38,38,0.04);border-radius:var(--radius-sm);">❌ ' + evt.content + '</div>'); hideProgress(); }
+                    } catch (e) {}
+                }
+            }
+            hideProgress();
+        } catch (e) { setOutput('<div class="text-red-500 p-4">Request failed: ' + e.message + '</div>'); hideProgress(); }
+    });
+
+    document.getElementById("edu-btn-profile").addEventListener("click", async function() {
+        var query = eduQuery.value.trim();
+        if (!query) return alert("请输入学习需求或自我介绍");
+        setOutput(""); showProgress("构建画像中...");
+        try {
+            var resp = await fetch(API + "/education/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: query }) });
+            var data = await resp.json();
+            var profile = (data.data && data.data.profile) || {};
+            setOutput('<div class="p-4"><h3 class="text-lg font-bold mb-3">学习画像 (' + (data.data && data.data.dimensions || 8) + ' 维度)</h3><pre class="text-xs font-mono bg-slate-50 p-3 rounded whitespace-pre-wrap">' + JSON.stringify(profile, null, 2) + '</pre></div>');
+        } catch (e) { setOutput('<div class="text-red-500">' + e.message + '</div>'); }
+        hideProgress();
+    });
+
+    document.getElementById("edu-btn-quiz").addEventListener("click", async function() {
+        var query = eduQuery.value.trim();
+        if (!query) return alert("请输入学习主题");
+        setOutput(""); showProgress("生成题库中...");
+        try {
+            var resp = await fetch(API + "/education/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: query, course: eduCourse.value.trim() }) });
+            var data = await resp.json();
+            var quizzes = (data.data && data.data.quizzes) || data;
+            setOutput('<div class="p-4"><h3 class="text-lg font-bold mb-3">练习题</h3><pre class="text-xs font-mono bg-slate-50 p-3 rounded whitespace-pre-wrap">' + JSON.stringify(quizzes, null, 2) + '</pre></div>');
+        } catch (e) { setOutput('<div class="text-red-500">' + e.message + '</div>'); }
+        hideProgress();
+    });
+
+    document.getElementById("edu-btn-tutor").addEventListener("click", async function() {
+        var query = eduQuery.value.trim();
+        if (!query) return alert("请输入问题");
+        setOutput(""); showProgress("智能答疑中...");
+        try {
+            var resp = await fetch(API + "/education/tutor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: query }) });
+            var data = await resp.json();
+            var ans = (data.data && data.data.answer) || {};
+            setOutput('<div class="p-4"><h3 class="text-lg font-bold mb-3">解答</h3><div>' + fmtMarkdown(ans.answer_markdown || JSON.stringify(ans)) + '</div></div>');
+        } catch (e) { setOutput('<div class="text-red-500">' + e.message + '</div>'); }
+        hideProgress();
+    });
+
+    document.getElementById("edu-btn-eval").addEventListener("click", async function() {
+        var query = eduQuery.value.trim();
+        if (!query) return alert("请输入评估需求描述");
+        setOutput(""); showProgress("评估中...");
+        try {
+            var resp = await fetch(API + "/education/eval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: query }) });
+            var data = await resp.json();
+            var evaluation = (data.data && data.data.evaluation) || data;
+            setOutput('<div class="p-4"><h3 class="text-lg font-bold mb-3">学习评估</h3><pre class="text-xs font-mono bg-slate-50 p-3 rounded whitespace-pre-wrap">' + JSON.stringify(evaluation, null, 2) + '</pre></div>');
+        } catch (e) { setOutput('<div class="text-red-500">' + e.message + '</div>'); }
+        hideProgress();
+    });
+})();

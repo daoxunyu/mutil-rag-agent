@@ -101,13 +101,24 @@ class MCPClientManager:
                 return
             raise
 
-        # 逐 server 加载 (单点失败不影响其它), 单次失败重试一次
+        # 逐 server 加载 (单点失败不影响其它), 单次失败重试多次
         # 重试目的: run.ps1 用 TCP 端口判 ready, 但 uvicorn 先 bind 后初始化
-        # FastMCP 路由, 偶尔 handshake 撞上 warmup, 短暂 sleep 即可恢复.
+        # FastMCP 路由, 偶尔 handshake 撞上 warmup. 从 1 次重试提升到
+        # mcp_load_retries 次 (默认 5), 配合指数退避, 给 MCP server 足够暖机时间.
+        # 启动前会有 mcp_startup_warmup_sec 秒 warmup 等待 (默认 5s).
+        warmup = settings.mcp_startup_warmup_sec
+        if warmup > 0:
+            logger.info(f"Waiting for MCP servers to warm up ({warmup}s)...")
+            await asyncio.sleep(warmup)
+
         all_tools: List[BaseTool] = []
         failed: List[str] = []
         for name in servers.keys():
-            tools = await self._load_one(name, retries=1, retry_delay=0.5)
+            tools = await self._load_one(
+                name,
+                retries=settings.mcp_load_retries,
+                retry_delay=settings.mcp_load_retry_delay_sec,
+            )
             if tools is None:
                 failed.append(name)
             else:
@@ -157,11 +168,13 @@ class MCPClientManager:
             except Exception as e:  # ExceptionGroup 是 Exception 的子类, 这里能接住
                 last_err = e
                 if attempt < retries:
+                    # 指数退避: delay * 2^attempt, 默认 2s -> 4s -> 8s -> 16s -> 32s
+                    backoff = retry_delay * (2 ** attempt)
                     logger.debug(
                         f"MCP '{name}' 加载失败 (第 {attempt + 1} 次), "
-                        f"{retry_delay}s 后重试: {_format_exc(e)}"
+                        f"{backoff:.1f}s 后重试: {_format_exc(e)}"
                     )
-                    await asyncio.sleep(retry_delay)
+                    await asyncio.sleep(backoff)
         logger.warning(
             f"MCP '{name}' 加载失败 (已重试 {retries} 次): {_format_exc(last_err)}"
         )

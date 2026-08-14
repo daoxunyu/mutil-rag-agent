@@ -1,0 +1,68 @@
+[
+  {
+    "id": "ev1",
+    "title": "机器学习 - 监督学习",
+    "date": "2026-07-14",
+    "time": "08:00-09:40",
+    "event_type": "study",
+    "course_name": "机器学习",
+    "description": "第三章：决策树与随机森林",
+    "duration_minutes": 100,
+    "created_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "id": "ev2",
+    "title": "Python 实验课",
+    "date": "2026-07-14",
+    "time": "14:00-15:40",
+    "event_type": "study",
+    "course_name": "Python 程序设计",
+    "description": "NumPy 数组操作实验",
+    "duration_minutes": 100,
+    "created_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "id": "ev3",
+    "title": "线性代数期中考试",
+    "date": "2026-07-16",
+    "time": "10:00-11:40",
+    "event_type": "exam",
+    "course_name": "线性代数",
+    "description": "第1-4章",
+    "duration_minutes": 100,
+    "created_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "id": "ev4",
+    "title": "机器学习作业截止",
+    "date": "2026-07-15",
+    "time": "23:59",
+    "event_type": "assignment",
+    "course_name": "机器学习",
+    "description": "决策树算法实现",
+    "duration_minutes": 0,
+    "created_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "id": "ev5",
+    "title": "数据结构复习",
+    "date": "2026-07-18",
+    "time": "19:00-21:00",
+    "event_type": "review",
+    "course_name": "数据结构与算法",
+    "description": "期末综合复习",
+    "duration_minutes": 120,
+    "created_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "title": "离散学习-学习",
+    "date": "2026-07-11",
+    "time": "",
+    "event_type": "study",
+    "course_name": "",
+    "description": "",
+    "duration_minutes": 45,
+    "id": "5802e1d4",
+    "created_at": "2026-07-12T13:55:18.199301+00:00"
+  }
+]

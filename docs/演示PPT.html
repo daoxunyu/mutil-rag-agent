@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多智能体协同高校个性化导学平台 — 演示PPT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+.slide { display: none; width: 100vw; height: 100vh; padding: 60px 80px; flex-direction: column; justify-content: center; position: absolute; top: 0; left: 0; }
+.slide.active { display: flex; }
+h1 { font-size: 3em; font-weight: 800; margin-bottom: 20px; background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 2.2em; font-weight: 700; margin-bottom: 30px; color: #f1f5f9; border-left: 4px solid #818cf8; padding-left: 20px; }
+h3 { font-size: 1.3em; font-weight: 600; color: #a78bfa; margin: 10px 0 5px; }
+p, li { font-size: 1.15em; line-height: 1.8; color: #cbd5e1; }
+.grid { display: grid; gap: 24px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.card { background: linear-gradient(135deg, #1e293b, #1a2332); border: 1px solid #334155; border-radius: 16px; padding: 28px; transition: transform 0.2s; }
+.card:hover { transform: translateY(-2px); border-color: #818cf8; }
+.card .icon { font-size: 2em; margin-bottom: 10px; }
+.card h4 { font-size: 1.1em; color: #e2e8f0; margin-bottom: 8px; }
+.card p { font-size: 0.95em; color: #94a3b8; }
+.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; margin: 3px; }
+.tag-blue { background: #1e3a5f; color: #60a5fa; }
+.tag-purple { background: #2d1b69; color: #a78bfa; }
+.tag-pink { background: #4a1942; color: #f472b6; }
+.tag-green { background: #064e3b; color: #34d399; }
+.nav { position: fixed; bottom: 20px; right: 30px; z-index: 100; display: flex; gap: 10px; }
+.nav button { background: #1e293b; border: 1px solid #475569; color: #e2e8f0; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2em; transition: all 0.2s; }
+.nav button:hover { background: #818cf8; border-color: #818cf8; }
+.page-indicator { position: fixed; bottom: 25px; left: 30px; z-index: 100; color: #64748b; font-size: 0.9em; }
+pre.code { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-size: 0.85em; overflow-x: auto; color: #94a3b8; line-height: 1.5; }
+.highlight { color: #f472b6; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+th { background: #1e293b; padding: 12px 16px; text-align: left; font-weight: 600; color: #a78bfa; }
+td { padding: 10px 16px; border-bottom: 1px solid #1e293b; }
+.stats { display: flex; gap: 40px; margin: 20px 0; }
+.stat { text-align: center; }
+.stat .num { font-size: 2.5em; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.arch-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 8px 0; text-align: center; font-weight: 600; }
+.arch-box.up { border-color: #818cf8; color: #a78bfa; }
+.arch-box.mid { border-color: #60a5fa; color: #60a5fa; }
+.arch-box.low { border-color: #34d399; color: #34d399; }
+.arrow { text-align: center; color: #64748b; font-size: 1.5em; margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: 封面 -->
+<div class="slide active" id="s1">
+  <div style="text-align:center; max-width:900px; margin:0 auto;">
+    <div style="font-size:1.1em;color:#818cf8;margin-bottom:10px;letter-spacing:4px;">中 国 软 件 杯 · A 组 赛 题</div>
+    <h1 style="font-size:3.2em;margin:20px 0;">多智能体协同<br>高校全专业个性化导学与资源生成平台</h1>
+    <p style="font-size:1.3em;color:#94a3b8;margin:30px 0;">6 个 AI Agent 并行协作 · 10 维动态画像 · 8 种多模态资源 · RAG 知识增强</p>
+    <div style="margin-top:50px;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+      <span class="tag tag-blue">LangGraph 编排</span><span class="tag tag-purple">DeepSeek v4</span>
+      <span class="tag tag-pink">SSE 流式</span><span class="tag tag-green">Milvus RAG</span>
+      <span class="tag tag-blue">FastAPI</span><span class="tag tag-purple">MCP 协议</span>
+    </div>
+    <p style="margin-top:60px;color:#64748b;">🎓 高等教育智能导学 — 因材施教的数字化落地</p>
+  </div>
+</div>
+
+<!-- Slide 2: 痛点与创新价值 -->
+<div class="slide" id="s2">
+  <h2>💡 痛点与创新价值</h2>
+  <div class="grid grid-2" style="margin-top:20px;">
+    <div>
+      <h3 style="color:#f472b6;">🎯 核心痛点</h3>
+      <div class="card" style="margin:10px 0;"><p>📚 <b>资源繁杂无序</b> — 海量课程资料难以精准匹配个人需求</p></div>
+      <div class="card" style="margin:10px 0;"><p>👥 <b>教学一刀切</b> — 课堂讲授无法兼顾每位学生的节奏与特点</p></div>
+      <div class="card" style="margin:10px 0;"><p>🤖 <b>传统系统不足</b> — 缺乏多模态生成与多智能体协同能力</p></div>
+    </div>
+    <div>
+      <h3 style="color:#34d399;">✨ 创新价值</h3>
+      <div class="card" style="margin:10px 0;"><p>🔀 <b>6 Agent 并行协作</b> — LangGraph 确定性 fan-out/fan-in 编排</p></div>
+      <div class="card" style="margin:10px 0;"><p>🎨 <b>8 种多模态资源</b> — 文档/PPT/题库/视频/代码/实验/导图/拓展</p></div>
+      <div class="card" style="margin:10px 0;"><p>⚡ <b>全链路 SSE 流式</b> — 零白屏等待，Agent 进度实时可见</p></div>
+      <div class="card" style="margin:10px 0;"><p>🔍 <b>Hybrid RAG 检索引擎</b> — Parent-Child + BM25 + RRF + Rerank</p></div>
+    </div>
+  </div>
+  <div class="stats" style="margin-top:30px;">
+    <div class="stat"><div class="num">6</div><div>AI Agent</div></div>
+    <div class="stat"><div class="num">10</div><div>画像维度</div></div>
+    <div class="stat"><div class="num">8</div><div>资源类型</div></div>
+    <div class="stat"><div class="num">4202</div><div>知识 chunks</div></div>
+    <div class="stat"><div class="num">100%</div><div>Hit@3</div></div>
+  </div>
+</div>
+
+<!-- Slide 3: 技术架构 -->
+<div class="slide" id="s3">
+  <h2>🏗️ 技术架构与多智能体协作框架</h2>
+  <div class="grid grid-2">
+    <div>
+      <h3>系统架构</h3>
+      <div class="arch-box up">🖥️ Web UI — 智能导学 · 学情分析 · 课程 · 日历 · 协作 · 答疑 · 知识库</div>
+      <div class="arrow">↓ SSE / REST API</div>
+      <div class="arch-box mid">⚙️ FastAPI 网关 — /education/* /chat/stream /courses/* /documents/*</div>
+      <div class="arrow">↓</div>
+      <div class="arch-box mid">🧠 LangGraph 教育图 + Hybrid RAG 引擎 + MCP 工具层 (5 Server)</div>
+      <div class="arrow">↓</div>
+      <div class="arch-box low">💾 Milvus (向量) · PostgreSQL (业务) · Redis (会话/队列)</div>
+    </div>
+    <div>
+      <h3>多智能体编排流程</h3>
+      <pre class="code">[START]
+   ↓
+StudentContext   ← 加载学生画像+课程信息
+   ↓
+ResourcePlan     ← LLM 路由：分析需求→决定派遣Agent
+   ↓
+ ┌─ profile_agent    (📊 学习画像)
+ ├─ knowledge_agent  (📚 知识解析)    ┐
+ ├─ resource_agent   (🎯 资源生成)    │ fan-out
+ ├─ path_agent       (🛤️ 路径规划)    │ 并行执行
+ ├─ tutor_agent      (💡 智能辅导)    │
+ └─ eval_agent       (📈 学习评估)    ┘
+   ↓
+ResourceIntegrator ← 归并所有 Agent 产出
+   ↓
+QualityReviewer    ← 内容安全+防幻觉检查
+   ↓
+LearningAdvisor    ← 生成学习建议
+   ↓
+Report → [END]</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: 核心功能演示 -->
+<div class="slide" id="s4">
+  <h2>🎯 核心功能</h2>
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="icon">📊</div>
+      <h4>对话式画像构建</h4>
+      <p>自然语言自动抽取 10 维特征：知识基础/认知风格/学习节奏/薄弱模式/兴趣领域/前置知识/资源偏好/学业状态/GPA/画像总结</p>
+      <span class="tag tag-purple">非表单</span><span class="tag tag-blue">随学随新</span>
+    </div>
+    <div class="card">
+      <div class="icon">🎯</div>
+      <h4>多Agent资源生成</h4>
+      <p>6 Agent 并行产出 8 种资源：课程文档/PPT大纲/选择题/填空题/简答题/视频脚本/代码案例/拓展阅读</p>
+      <span class="tag tag-pink">fan-out并行</span><span class="tag tag-green">结构化输出</span>
+    </div>
+    <div class="card">
+      <div class="icon">🛤️</div>
+      <h4>个性化学习路径</h4>
+      <p>分阶段规划+里程碑+检查点+周计划+期中/期末备考+自适应调整规则</p>
+      <span class="tag tag-blue">动态规划</span><span class="tag tag-purple">考试计划</span>
+    </div>
+    <div class="card">
+      <div class="icon">💡</div>
+      <h4>智能辅导答疑</h4>
+      <p>文字详解+图解说明+短视频要点+Markdown表格+代码示例+关联知识推荐+追问建议</p>
+      <span class="tag tag-green">多模态解答</span><span class="tag tag-pink">SSE流式</span>
+    </div>
+    <div class="card">
+      <div class="icon">📈</div>
+      <h4>学习效果评估</h4>
+      <p>5 维度评分+薄弱点定位+GPA预测+学分进度+考试就绪度+动态调整建议</p>
+      <span class="tag tag-purple">多维评估</span><span class="tag tag-blue">GPA预测</span>
+    </div>
+    <div class="card">
+      <div class="icon">🔍</div>
+      <h4>RAG 知识库增强</h4>
+      <p>4202 chunks/968篇文档 · Parent-Child Chunking · BM25+RRF Hybrid · bge-reranker 精排 · Hit@3=100%</p>
+      <span class="tag tag-green">Hit@3=1.00</span><span class="tag tag-blue">MRR=0.93</span>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: 加分项展示 -->
+<div class="slide" id="s5">
+  <h2>⭐ 加分项与特色功能</h2>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="color:#f472b6;">💡 智能辅导（加分项）</h3>
+      <p>即时多模态答疑，Markdown 渲染 + 代码高亮 + 表格对比 + Mermaid 流程图 + 教材推荐 + 追问建议</p>
+      <pre class="code">学生: 什么是监督学习？
+AI: # 监督学习
+| 类型 | 算法 | 场景 |
+|------|------|------|
+| 分类 | 逻辑回归/决策树/SVM | 垃圾邮件识别 |
+| 回归 | 线性回归/岭回归 | 房价预测 |
+\`\`\`python
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression()
+model.fit(X_train, y_train)
+\`\`\`</pre>
+    </div>
+    <div class="card">
+      <h3 style="color:#a78bfa;">📈 学习评估（加分项）</h3>
+      <table>
+        <tr><th>维度</th><th>评分</th><th>分析</th></tr>
+        <tr><td>知识体系</td><td>65/100</td><td>知识碎片化，需系统化</td></tr>
+        <tr><td>实践能力</td><td>70/100</td><td>缺项目实战经验</td></tr>
+        <tr><td>数学基础</td><td>60/100</td><td>线代/概率需巩固</td></tr>
+        <tr><td>规划清晰度</td><td>80/100</td><td>目标明确，路线清晰</td></tr>
+        <tr><td>学业匹配</td><td>80/100</td><td>时间规划合理</td></tr>
+        <tr><td><b>GPA预测</b></td><td><b>3.3</b></td><td>目标 3.5，需加强数学</td></tr>
+      </table>
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
+    <span class="tag tag-green">✅ 画像构建</span><span class="tag tag-green">✅ 资源生成</span><span class="tag tag-green">✅ 路径规划</span>
+    <span class="tag tag-green">✅ 智能辅导</span><span class="tag tag-green">✅ 学习评估</span><span class="tag tag-green">✅ RAG知识库</span>
+    <span class="tag tag-green">✅ SSE流式</span><span class="tag tag-green">✅ 防幻觉机制</span><span class="tag tag-green">✅ 学情分析</span>
+  </div>
+</div>
+
+<!-- Slide 6: 防幻觉与质量保障 -->
+<div class="slide" id="s6">
+  <h2>🛡️ 质量保障与防幻觉机制</h2>
+  <div class="grid grid-2">
+    <div>
+      <div class="card" style="margin:10px 0;">
+        <h4>🔒 结构化输出约束</h4>
+        <p>所有 Agent 使用 JSON Schema 约束输出格式，LLM 必须输出符合预定义结构的 JSON，大幅减少自由发挥的幻觉空间</p>
+      </div>
+      <div class="card" style="margin:10px 0;">
+        <h4>🎯 确定性路由 + LLM 验证</h4>
+        <p>ResourcePlan 先通过关键词规则快速匹配 Agent，再由 LLM 验证和补充，避免纯 LLM 路由的不确定性</p>
+      </div>
+      <div class="card" style="margin:10px 0;">
+        <h4>✅ QualityReviewer 审核节点</h4>
+        <p>Agent 产出必经质量审核节点：自动检测空输出/格式错误/内容安全，LLM 二次审查事实性错误</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin:10px 0;">
+        <h4>📏 内容长度硬限制</h4>
+        <p>Agent 输出限制在合理范围，避免 LLM 无意义长篇生成和幻觉扩散</p>
+      </div>
+      <div class="card" style="margin:10px 0;">
+        <h4>🏷️ 来源标注</h4>
+        <p>RAG 检索到的知识片段在回答中标注来源文档，学生可追溯原始资料验证信息准确性</p>
+      </div>
+      <div class="card" style="margin:10px 0;">
+        <h4>🔄 兜底机制</h4>
+        <p>LLM 失败时自动降级为确定性规则生成，确保系统始终有可用的基础内容输出</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: 总结 -->
+<div class="slide" id="s7">
+  <h2>🚀 总结与展望</h2>
+  <div style="text-align:center;max-width:800px;margin:0 auto;">
+    <h3 style="color:#34d399;font-size:1.5em;">赛题覆盖度：100% 基本功能 + 2 项加分</h3>
+    <table style="margin:30px 0;">
+      <tr><th>赛题要求</th><th>实现</th><th>状态</th></tr>
+      <tr><td>对话式画像 (6+维度)</td><td>10 维动态画像</td><td>✅ 超额完成</td></tr>
+      <tr><td>多Agent资源生成 (5+类型)</td><td>6 Agent / 8 种资源</td><td>✅ 超额完成</td></tr>
+      <tr><td>个性化学习路径</td><td>分阶段+里程碑+周计划</td><td>✅ 完成</td></tr>
+      <tr><td>智能辅导 (加分)</td><td>多模态答疑+SSE流式</td><td>✅ 完成</td></tr>
+      <tr><td>学习评估 (加分)</td><td>5维评分+GPA预测</td><td>✅ 完成</td></tr>
+      <tr><td>防幻觉机制</td><td>审核节点+Schema+兜底</td><td>✅ 完成</td></tr>
+      <tr><td>流式输出</td><td>全链路 SSE</td><td>✅ 完成</td></tr>
+    </table>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;">
+      <span class="tag tag-blue">LangGraph</span><span class="tag tag-purple">DeepSeek v4</span>
+      <span class="tag tag-pink">FastAPI</span><span class="tag tag-green">Milvus</span>
+      <span class="tag tag-blue">Redis</span><span class="tag tag-purple">PostgreSQL</span>
+      <span class="tag tag-pink">MCP</span><span class="tag tag-green">SSE</span>
+    </div>
+    <p style="margin-top:40px;color:#64748b;">开源组件遵循 MIT / Apache 2.0 / BSD 协议 · AI 辅助工具声明：Claude Code + 科大讯飞</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="page-indicator" id="pageNum">1 / 7</div>
+<div class="nav">
+  <button onclick="prev()" title="上一页">◀</button>
+  <button onclick="next()" title="下一页">▶</button>
+</div>
+
+<script>
+let current = 0;
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+
+function show(n) {
+  slides[current].classList.remove('active');
+  current = (n + total) % total;
+  slides[current].classList.add('active');
+  document.getElementById('pageNum').textContent = (current + 1) + ' / ' + total;
+}
+
+function next() { show(current + 1); }
+function prev() { show(current - 1); }
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+});
+</script>
+</body>
+</html>

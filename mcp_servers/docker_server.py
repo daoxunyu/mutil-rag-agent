@@ -13,6 +13,12 @@
 
 import json
 import os
+import sys
+
+# Windows ProactorEventLoop 在客户端断开时抛出 ConnectionResetError, 切换事件循环策略避免日志刷屏.
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import subprocess
 from typing import List, Optional
 

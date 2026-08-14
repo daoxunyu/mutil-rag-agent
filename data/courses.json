@@ -1,0 +1,72 @@
+[
+  {
+    "id": "ml2024",
+    "name": "机器学习",
+    "college": "计算机学院",
+    "schedule": "周三 8:00-9:40, 周五 10:00-11:40",
+    "category": "必修",
+    "credits": 4.0,
+    "instructor": "李教授",
+    "progress": 35,
+    "assignments_done": 3,
+    "assignments_total": 8,
+    "gpa": 3.7,
+    "created_at": "2026-02-24T08:00:00Z"
+  },
+  {
+    "id": "python2024",
+    "name": "Python 程序设计",
+    "college": "计算机学院",
+    "schedule": "周一 14:00-15:40",
+    "category": "必修",
+    "credits": 3.0,
+    "instructor": "王老师",
+    "progress": 78,
+    "assignments_done": 6,
+    "assignments_total": 7,
+    "gpa": 4.0,
+    "created_at": "2026-02-24T08:00:00Z"
+  },
+  {
+    "id": "math2024",
+    "name": "线性代数",
+    "college": "数学学院",
+    "schedule": "周二 10:00-11:40, 周四 8:00-9:40",
+    "category": "必修",
+    "credits": 3.5,
+    "instructor": "张教授",
+    "progress": 52,
+    "assignments_done": 4,
+    "assignments_total": 6,
+    "gpa": 3.3,
+    "created_at": "2026-02-24T08:00:00Z"
+  },
+  {
+    "id": "ds2024",
+    "name": "数据结构与算法",
+    "college": "计算机学院",
+    "schedule": "周三 14:00-15:40",
+    "category": "必修",
+    "credits": 4.0,
+    "instructor": "赵教授",
+    "progress": 60,
+    "assignments_done": 5,
+    "assignments_total": 8,
+    "gpa": 3.5,
+    "created_at": "2026-02-24T08:00:00Z"
+  },
+  {
+    "name": "离散数学",
+    "college": "计算机学院",
+    "schedule": "待定",
+    "category": "必修",
+    "credits": 3.0,
+    "instructor": "",
+    "progress": 0,
+    "assignments_done": 0,
+    "assignments_total": 0,
+    "gpa": 0,
+    "id": "acde9e245f52",
+    "created_at": "2026-07-12T13:55:00.954869+00:00"
+  }
+]

@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import asyncio
-import fcntl
+import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -28,6 +28,24 @@ from pathlib import Path
 from typing import Any, AsyncIterator, TextIO
 
 from loguru import logger
+
+# Cross-platform file locking (fcntl on Unix, msvcrt on Windows)
+if os.name == 'nt':
+    import msvcrt
+
+    def _lock_file_handle(fileno: int) -> None:
+        msvcrt.locking(fileno, msvcrt.LK_LOCK, 1)
+
+    def _unlock_file_handle(fileno: int) -> None:
+        msvcrt.locking(fileno, msvcrt.LK_UNLCK, 1)
+else:
+    import fcntl
+
+    def _lock_file_handle(fileno: int) -> None:
+        fcntl.flock(fileno, fcntl.LOCK_EX)
+
+    def _unlock_file_handle(fileno: int) -> None:
+        fcntl.flock(fileno, fcntl.LOCK_UN)
 
 from app.config import settings
 from app.core.llm import get_chat_llm
@@ -83,11 +101,11 @@ async def _wiki_write_guard() -> AsyncIterator[None]:
         try:
             _WIKI_DIR.mkdir(parents=True, exist_ok=True)
             handle = await asyncio.to_thread(_LOCK_FILE.open, "a+", encoding="utf-8")
-            await asyncio.to_thread(fcntl.flock, handle.fileno(), fcntl.LOCK_EX)
+            await asyncio.to_thread(_lock_file_handle, handle.fileno())
             yield
         finally:
             if handle is not None:
-                await asyncio.to_thread(fcntl.flock, handle.fileno(), fcntl.LOCK_UN)
+                await asyncio.to_thread(_unlock_file_handle, handle.fileno())
                 handle.close()
 
 

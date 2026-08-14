@@ -97,9 +97,10 @@ class MilvusManager:
         if not self._connected:
             return False
         try:
-            # 试着获取连接地址, 失败说明连接已掉
-            addr = connections.get_connection_addr(self.DEFAULT_ALIAS)
-            return bool(addr)
+            # 用 has_collection 做轻量探活; get_connection_addr / get_server_version
+            # 均为已弃用的 ORM-style API (pymilvus 3.1 将移除).
+            utility.has_collection("_health_check_dummy", using=self.DEFAULT_ALIAS)
+            return True
         except Exception as e:
             logger.warning(f"Milvus health check 失败: {e}")
             return False

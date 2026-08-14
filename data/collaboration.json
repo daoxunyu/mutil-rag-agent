@@ -1,0 +1,70 @@
+{
+  "groups": [
+    {
+      "id": "g1",
+      "name": "机器学习互助小组",
+      "topic": "机器学习课程讨论与作业互助",
+      "course": "机器学习",
+      "member_count": 8,
+      "created_at": "2026-07-01T00:00:00Z"
+    },
+    {
+      "id": "g2",
+      "name": "Python 进阶",
+      "topic": "Python 数据分析与可视化",
+      "course": "Python 程序设计",
+      "member_count": 5,
+      "created_at": "2026-07-03T00:00:00Z"
+    },
+    {
+      "id": "g3",
+      "name": "期末复习冲刺",
+      "topic": "期末复习资源共享与答疑",
+      "course": "",
+      "member_count": 12,
+      "created_at": "2026-07-05T00:00:00Z"
+    }
+  ],
+  "discussions": [
+    {
+      "group_id": "",
+      "author": "同学",
+      "content": "离散学习和机器学习的区别",
+      "topic_tag": "学习讨论",
+      "id": "427437de",
+      "created_at": "2026-07-12T13:55:37.790641+00:00",
+      "replies": 0,
+      "likes": 0
+    },
+    {
+      "id": "d1",
+      "group_id": "g1",
+      "author": "张三",
+      "content": "机器学习第三章的决策树剪枝部分不太理解，有同学能帮忙解释一下吗？",
+      "topic_tag": "课程讨论",
+      "replies": 3,
+      "likes": 5,
+      "created_at": "2026-07-10T10:00:00Z"
+    },
+    {
+      "id": "d2",
+      "group_id": "g1",
+      "author": "李四",
+      "content": "分享一个很好的决策树可视化工具：https://github.com/... 可以直观看到树的生长过程",
+      "topic_tag": "资源分享",
+      "replies": 1,
+      "likes": 8,
+      "created_at": "2026-07-11T14:00:00Z"
+    },
+    {
+      "id": "d3",
+      "group_id": "g3",
+      "author": "王五",
+      "content": "整理了一份数据结构的期末复习笔记（含重点题型），需要的同学自取",
+      "topic_tag": "资源共享",
+      "replies": 5,
+      "likes": 15,
+      "created_at": "2026-07-12T09:00:00Z"
+    }
+  ]
+}

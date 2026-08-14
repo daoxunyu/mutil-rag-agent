@@ -1,5 +1,12 @@
 import platform
+import sys
 from typing import Any, Dict, List
+
+# Windows ProactorEventLoop 在客户端断开时会抛出 ConnectionResetError,
+# 切换到 SelectorEventLoop 可以避免这个无害但刷屏的错误.
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import psutil
 from fastmcp import FastMCP

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     )
 
     # ==================== 应用基础 ====================
-    app_name: str = Field(default="MultiAgentAIOps", description="应用名")
+    app_name: str = Field(default="EduMultiAgent", description="应用名")
     app_version: str = Field(default="1.0.0", description="应用版本")
     debug: bool = Field(default=False, description="调试模式")
     host: str = Field(default="0.0.0.0", description="监听地址")
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     dashscope_embedding_dim: int = Field(default=1024, description="Embedding 向量维度")
     embedding_provider: str = Field(
         default="dashscope",
-        description="Embedding 提供方: dashscope / ollama",
+        description="Embedding 提供方: dashscope / ollama / local (sentence-transformers)",
     )
     ollama_base_url: str = Field(
         default="http://localhost:11434",
@@ -348,6 +348,24 @@ class Settings(BaseSettings):
     mcp_network_url: str = Field(default="http://localhost:8009/mcp", description="网络诊断 MCP URL")
     mcp_docker_transport: str = Field(default="streamable-http", description="Docker 管理 MCP 传输")
     mcp_docker_url: str = Field(default="http://localhost:8011/mcp", description="Docker 管理 MCP URL")
+    mcp_load_retries: int = Field(
+        default=5,
+        description=(
+            "MCP 工具加载失败后的最大重试次数. 默认 5 次配合指数退避 "
+            "(2s->4s->8s->16s->32s), 给 MCP server 进程充足暖机时间."
+        ),
+    )
+    mcp_load_retry_delay_sec: float = Field(
+        default=2.0,
+        description="MCP 工具加载重试的基础延迟秒数, 每次重试乘以 2^(attempt).",
+    )
+    mcp_startup_warmup_sec: float = Field(
+        default=5.0,
+        description=(
+            "MCP 客户端连接前等待秒数. run.ps1 同时启动 main app 和 MCP servers; "
+            "uvicorn bind 端口比 FastMCP 路由初始化快, 需要给 handshake 留时间."
+        ),
+    )
 
     # ==================== Agent ====================
     agent_max_steps: int = Field(default=5, description="Plan-Execute 最大步骤 (防死循环)")
@@ -536,6 +554,15 @@ class Settings(BaseSettings):
         description="Prometheus HTTP API 超时秒数, 超时即返回错误说明, 不阻塞诊断主链路",
     )
 
+    # ==================== 教育多智能体导学平台 ====================
+    education_default_course: str = Field(default="机器学习", description="默认课程名称")
+    education_default_major: str = Field(default="计算机科学与技术", description="默认专业")
+    education_agent_count: int = Field(default=6, description="教育 Agent 数量")
+    education_resource_types: str = Field(
+        default="document,ppt_outline,quiz,video_script,code_example,reading_material",
+        description="支持的资源类型",
+    )
+
     # ==================== 联网搜索 ====================
     # provider 可选: open_websearch (本地 daemon, 无 API Key) / mock / ddgs (国内不稳)
     web_search_provider: str = Field(
@@ -644,8 +671,8 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_embedding_provider(cls, v: str) -> str:
         value = (v or "dashscope").lower().strip()
-        if value not in {"dashscope", "ollama"}:
-            raise ValueError("embedding_provider 只能是 dashscope 或 ollama")
+        if value not in {"dashscope", "ollama", "local"}:
+            raise ValueError("embedding_provider 只能是 dashscope、ollama 或 local")
         return value
 
     def validate_runtime(self) -> None:
